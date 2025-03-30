@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 import ttkbootstrap as tb
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
 from functions import generate_stock_graph
@@ -19,39 +18,42 @@ class TradingApp:
     - draw_chart(frame, plot_function): Draws a stock chart using an external function.
     """
     def __init__(self, root):
-        self.root = root
-        self.root.title("Trading Algorithm App")
+        self.root = root # Makes the root variable equal to the root argument
+        self.root.title("Trading Algorithm App") # Sets the app title
         self.root.geometry("1400x800")  # Increased size for better zoom
 
         # Theme Setup
-        self.style = tb.Style()
+        self.style = tb.Style() # Makes a style variable
         self.theme_var = tk.StringVar(value=self.style.theme_use())
-        self.style.theme_use("darkly")
+        self.style.theme_use("darkly") # Sets the default theme
 
         # Main layout frames
-        self.main_frame = ttk.Frame(root)
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        self.main_frame = ttk.Frame(root) # Adds the main frame
+        self.main_frame.pack(fill=tk.BOTH, expand=True) # Packs the main frame
 
-        self.side_panel = ttk.Frame(self.main_frame, width=250, padding=20, relief="ridge")
-        self.side_panel.pack(side=tk.LEFT, fill=tk.Y)
+        self.side_panel = ttk.Frame(self.main_frame, width=250, padding=20, relief="ridge") # Makes the side panel frame
+        self.side_panel.pack(side=tk.LEFT, fill=tk.Y) # Packs the side panel frame
 
-        self.notebook = ttk.Frame(self.main_frame)
-        self.notebook.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
+        self.notebook = ttk.Frame(self.main_frame) # Adds a notebook frame
+        self.notebook.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20) # Packs the notebook frame
 
         # Tabs
-        self.tab1 = ttk.Frame(self.notebook)
+        self.tab1 = ttk.Frame(self.notebook) # Creates the first tab
         self.create_algorithm_settings()
 
-        self.tab2 = ttk.Frame(self.notebook)
+        self.tab2 = ttk.Frame(self.notebook) # Creates the second tab
         self.create_stock_preview()
 
-        self.tab3 = ttk.Frame(self.notebook)
+        self.tab3 = ttk.Frame(self.notebook) # Creates the third tab
         self.create_trading_helper()
 
-        self.settings_tab = ttk.Frame(self.notebook)
+        self.tab4 = ttk.Frame(self.notebook) # Creates the fourth tab
+        self.create_future_predictions()
+
+        self.settings_tab = ttk.Frame(self.notebook) # Creates the settings tab
         self.create_settings()
 
-        self.create_side_menu()
+        self.create_side_menu() # Creates the side menu and displays the main menu
         self.show_tab(self.tab1)
 
     def create_side_menu(self):
@@ -59,19 +61,23 @@ class TradingApp:
             ("⚙ Algorithm Settings", self.tab1),
             ("📈 Stock Preview", self.tab2),
             ("💰 Trading Helper", self.tab3),
+            ("🔮 Future Predictions", self.tab4),
             ("⚙ Settings", self.settings_tab)
-        ]
+        ] # Is a list of tuples which store a buttons name and which tab it goes to
 
         for text, tab in buttons:
             btn = ttk.Button(self.side_panel, text=text, command=lambda t=tab: self.show_tab(t),
-                             style="primary.Outline.TButton")
+                             style="primary.Outline.TButton") # Creates a button for every tab
             btn.pack(fill=tk.X, pady=12, ipady=8)
 
     def show_tab(self, tab):
         for child in self.notebook.winfo_children():
             child.pack_forget()
-        tab.pack(fill=tk.BOTH, expand=True)
+        tab.pack(fill=tk.BOTH, expand=True) # Unpacks the previous tab and packs the new one to display it
 
+
+    # Create the tabs
+    # Creates the algorithm settings tab
     def create_algorithm_settings(self):
         frame = ttk.Frame(self.tab1, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
@@ -88,6 +94,7 @@ class TradingApp:
             ttk.Label(frame, text=label_text, font=("Arial", 16, "bold")).pack(pady=10)
             ttk.Entry(frame, font=("Arial", 14)).pack(pady=10, ipadx=10, ipady=8)
 
+    # Creates the stock preview tab
     def create_stock_preview(self):
         frame = ttk.Frame(self.tab2, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
@@ -97,8 +104,16 @@ class TradingApp:
         self.stock_input.pack(pady=10, ipadx=10, ipady=8)
         self.stock_input.bind("<Return>", self.validate_stock)
 
+
         self.stock_chart_frame = ttk.Frame(frame, borderwidth=4, relief="groove")
         self.stock_chart_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+
+    # Creates the future predictions preview tab
+    def create_future_predictions(self):
+        frame = ttk.Frame(self.tab4, padding=30)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(frame, text="COMING SOON!", font=("Arial", 48, "bold")).pack(pady=10)
 
     def draw_chart(self, frame, plot_function):
         """
@@ -118,12 +133,12 @@ class TradingApp:
 
     def validate_stock(self, event=None):
         stock_code = self.stock_input.get().strip().upper()
-        if stock_code in NASDAQ_VALID:
-            print(f"Valid stock: {stock_code}")
+        try:
             self.draw_chart(self.stock_chart_frame, lambda: generate_stock_graph(stock_code))
-        else:
-            print(f"Invalid stock: {stock_code}")
+        except AttributeError:
+            print('Invalid')
 
+    # Creates the trading helper tab
     def create_trading_helper(self):
         frame = ttk.Frame(self.tab3, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
@@ -143,6 +158,7 @@ class TradingApp:
     def sell_signal(self):
         self.trade_action_label.config(text="SELL", foreground="red")
 
+    # Creates the settings tab
     def create_settings(self):
         frame = ttk.Frame(self.settings_tab, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
