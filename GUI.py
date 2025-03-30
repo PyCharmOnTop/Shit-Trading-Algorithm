@@ -3,10 +3,14 @@ from tkinter import ttk
 import ttkbootstrap as tb
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
-from functions import generate_stock_graph
+import matplotlib.pyplot as plt
+
+from algorithms import MomentumAlgorithm
+from functions import generate_stock_graph, NASDAQ_TO_NAME
 
 # Sample NASDAQ validation list
 NASDAQ_VALID = list(pd.read_csv('Data/nasdaq_screener_1743286582710.csv')['Symbol'])
+global_algo_choice = None
 
 class TradingApp:
     """
@@ -20,7 +24,9 @@ class TradingApp:
     def __init__(self, root):
         self.root = root # Makes the root variable equal to the root argument
         self.root.title("Trading Algorithm App") # Sets the app title
-        self.root.geometry("1400x800")  # Increased size for better zoom
+        self.root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Increased size for better zoom
+
+
 
         # Theme Setup
         self.style = tb.Style() # Makes a style variable
@@ -31,11 +37,13 @@ class TradingApp:
         self.main_frame = ttk.Frame(root) # Adds the main frame
         self.main_frame.pack(fill=tk.BOTH, expand=True) # Packs the main frame
 
+
         self.side_panel = ttk.Frame(self.main_frame, width=250, padding=20, relief="ridge") # Makes the side panel frame
         self.side_panel.pack(side=tk.LEFT, fill=tk.Y) # Packs the side panel frame
 
         self.notebook = ttk.Frame(self.main_frame) # Adds a notebook frame
         self.notebook.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20) # Packs the notebook frame
+
 
         # Tabs
         self.tab1 = ttk.Frame(self.notebook) # Creates the first tab
@@ -55,6 +63,8 @@ class TradingApp:
 
         self.create_side_menu() # Creates the side menu and displays the main menu
         self.show_tab(self.tab1)
+
+
 
     def create_side_menu(self):
         buttons = [
@@ -79,11 +89,12 @@ class TradingApp:
     # Create the tabs
     # Creates the algorithm settings tab
     def create_algorithm_settings(self):
+        global global_algo_choice
         frame = ttk.Frame(self.tab1, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(frame, text="Algorithm Choice:", font=("Arial", 16, "bold")).pack(pady=10)
-        self.algo_choice = ttk.Combobox(frame, values=["Algo1", "Algo2", "Algo3"], state="readonly", font=("Arial", 14))
+        self.algo_choice = ttk.Combobox(frame, values=["Momentum Algorithm", "Coming Soon!", "Coming Soon!"], state="readonly", font=("Arial", 18))
         self.algo_choice.pack(pady=10, ipadx=10, ipady=8)
 
         ttk.Label(frame, text="Time Interval (Seconds):", font=("Arial", 16, "bold")).pack(pady=10)
@@ -93,6 +104,7 @@ class TradingApp:
         for label_text in ["Min Stock Price:", "Max Stock Price:"]:
             ttk.Label(frame, text=label_text, font=("Arial", 16, "bold")).pack(pady=10)
             ttk.Entry(frame, font=("Arial", 14)).pack(pady=10, ipadx=10, ipady=8)
+        self.algo_choice.bind("<<ComboboxSelected>>", self.set_global_algo)
 
     # Creates the stock preview tab
     def create_stock_preview(self):
@@ -123,13 +135,17 @@ class TradingApp:
         - frame: The frame where the chart will be placed.
         - plot_function: A function that generates a Matplotlib figure.
         """
+        # Destroy previous widgets to prevent memory leaks
         for widget in frame.winfo_children():
             widget.destroy()
-        fig = plot_function()
+
+        fig = plot_function()  # Generate the new figure
         canvas = FigureCanvasTkAgg(fig, master=frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
+        # Close the figure to release memory
+        plt.close(fig)
 
     def validate_stock(self, event=None):
         stock_code = self.stock_input.get().strip().upper()
@@ -143,20 +159,28 @@ class TradingApp:
         frame = ttk.Frame(self.tab3, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        self.stock_name_label = ttk.Label(frame, text="Stock: None", font=("Arial", 18, "bold"))
+        ttk.Label(frame, text="Enter NASDAQ Code:", font=("Arial", 16, "bold")).pack(pady=10)
+        self.stock_input_helper = ttk.Entry(frame, font=("Arial", 14))
+        self.stock_input_helper.pack(pady=10, ipadx=10, ipady=8)
+        self.stock_input_helper.bind("<Return>", self.start_updating)
+
+        self.stock_name_label = ttk.Label(frame, text="Stock: N/A", font=("Arial", 18, "bold"))
         self.stock_name_label.pack(pady=15)
 
         self.trading_chart_frame = ttk.Frame(frame, borderwidth=4, relief="groove")
         self.trading_chart_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
         self.trade_action_label = ttk.Label(frame, text="", font=("Arial", 32, "bold"))
-        self.trade_action_label.pack(pady=25)
+        self.trade_action_label.pack(pady=15)
 
-    def buy_signal(self):
-        self.trade_action_label.config(text="BUY", foreground="green")
+        self.risk_label = ttk.Label(frame, text="Risk Level: N/A", font=("Arial", 16))
+        self.risk_label.pack(pady=10)
 
-    def sell_signal(self):
-        self.trade_action_label.config(text="SELL", foreground="red")
+        self.current_price_label = ttk.Label(frame, text="Current Price: N/A", font=("Arial", 16, "bold"))
+        self.current_price_label.pack(pady=10)
+
+        self.is_updating = False
+        self.current_stock = ""
 
     # Creates the settings tab
     def create_settings(self):
@@ -176,3 +200,57 @@ class TradingApp:
     def change_theme(self, event):
         self.style.theme_use(self.theme_var.get())
 
+    def set_global_algo(self, event):
+        global global_algo_choice
+        global_algo_choice = self.algo_choice.get()
+
+        # If "Momentum Algorithm" is selected, update Trading Helper
+        if global_algo_choice == "Momentum Algorithm":
+            self.update_trading_helper()  # Use class's ticker argument
+
+    def start_updating(self, event=None):
+        stock_symbol = self.stock_input_helper.get().strip().upper()
+        if stock_symbol == self.current_stock:
+            return
+
+        self.current_stock = stock_symbol
+        self.is_updating = True
+        self.update_trading_helper()
+
+    def stop_updating(self, event=None):
+        # Stop the updates if the input is changed
+        self.is_updating = False
+        # Clear any old data or UI updates (optional)
+        self.trade_action_label.config(text="")
+        self.risk_label.config(text="Risk Level: N/A")
+        self.stock_name_label.config(text="Stock: N/A")
+        self.stock_input_helper.config(state="normal")
+
+    def update_trading_helper(self):
+        if not self.is_updating or not self.current_stock:
+            return
+
+        try:
+            print(f"Creating MomentumAlgorithm instance for {self.current_stock}")  # Debugging
+            algo = MomentumAlgorithm(self.current_stock)  # Ensure the stock symbol is passed correctly
+            algo.fetch_live_data()
+
+            self.risk_label.config(text=f"Risk Level: {round((algo.risk_level) * 100)}%")
+            self.current_price_label.config(text=f"Current Price: {algo.get_current_price():.2f}")
+
+            signal = algo.check_signals()
+            if signal == "BUY":
+                self.trade_action_label.config(text="BUY", foreground="green")
+            elif signal == "SELL":
+                self.trade_action_label.config(text="SELL", foreground="red")
+            else:
+                self.trade_action_label.config(text="No Signal", foreground="yellow")
+
+            self.draw_chart(self.trading_chart_frame, lambda: generate_stock_graph(self.current_stock))
+
+        except Exception as e:
+            print(f"Error encountered: {e}")  # Debugging
+            self.stock_name_label.config(text=f"Error: {e}", foreground="red")
+
+        if self.is_updating:
+            self.root.after(3000, self.update_trading_helper)

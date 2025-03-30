@@ -20,7 +20,7 @@ def generate_stock_graph(ticker, short_period='1d', long_period='6mo'):
         tickers = ticker.split(seperator)
         tickers = [i.strip() for i in tickers]
 
-        fig, ax = plt.subplots(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=80)
         for ticker in tickers:
             stock = yf.Ticker(f"{ticker}")
             data = stock.history(period=long_period)
@@ -31,6 +31,7 @@ def generate_stock_graph(ticker, short_period='1d', long_period='6mo'):
         ax.legend()
         ax.grid(True)
 
+        plt.close(fig)
         return fig  # Return the figure object
     else:
         stock = yf.Ticker(f"{ticker}")
@@ -47,4 +48,7 @@ def generate_stock_graph(ticker, short_period='1d', long_period='6mo'):
         ax.legend()
         ax.grid(True)
 
+        plt.close(fig)
         return fig  # Return the figure object
+
+
